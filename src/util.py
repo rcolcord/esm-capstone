@@ -87,3 +87,25 @@ def build_trio_timeseries(trio, profiles):
     # Inner join on timestamp index
     combined = pd.concat(dfs, axis=1, join="inner").sort_index()
     return combined
+
+
+def load_trio_csv(filepath):
+    df = pd.read_csv(filepath)
+
+    # --- Parse time ---
+    df["time"] = pd.to_datetime(df["time_utc"], utc=True)
+    df = df.set_index("time")
+
+    # --- Split wind / solar ---
+    wind_cols = [c for c in df.columns if "wind_cf" in c]
+    solar_cols = [c for c in df.columns if "solar_cf" in c]
+
+    wind_cf = df[wind_cols].copy()
+    solar_cf = df[solar_cols].copy()
+
+    # --- Optional: rename columns to Region1/2/3 ---
+    # (helps PyPSA stay clean)
+    wind_cf.columns = [f"Region{i+1}" for i in range(len(wind_cf.columns))]
+    solar_cf.columns = [f"Region{i+1}" for i in range(len(solar_cf.columns))]
+
+    return wind_cf, solar_cf

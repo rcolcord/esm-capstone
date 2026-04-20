@@ -1,0 +1,10 @@
+name,bus,control,type,p_nom,p_nom_mod,p_nom_extendable,p_nom_min,p_nom_max,p_nom_set,p_min_pu,p_max_pu,p_set,p_init,e_sum_min,e_sum_max,q_set,sign,carrier,marginal_cost,marginal_cost_quadratic,active,build_year,lifetime,capital_cost,overnight_cost,discount_rate,fom_cost,efficiency,committable,start_up_cost,shut_down_cost,stand_by_cost,min_up_time,min_down_time,up_time_before,down_time_before,ramp_limit_up,ramp_limit_down,ramp_limit_start_up,ramp_limit_shut_down,weight,p_nom_opt
+wind_Region1,Region1,Slack,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,wind,0.0,0.0,True,0,inf,157773.42982844455,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,38776.173600463495
+solar_Region1,Region1,PQ,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,solar,0.0,0.0,True,0,inf,151267.87719644455,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,-0.0
+backup_Region1,Region1,PQ,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,backup,45.0,0.0,True,0,inf,60128.38596622226,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,11494.64664656795
+wind_Region2,Region2,Slack,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,wind,0.0,0.0,True,0,inf,157773.42982844455,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,-0.0
+solar_Region2,Region2,PQ,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,solar,0.0,0.0,True,0,inf,151267.87719644455,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,34913.570985663035
+backup_Region2,Region2,PQ,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,backup,45.0,0.0,True,0,inf,60128.38596622226,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,12025.090262006515
+wind_Region3,Region3,Slack,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,wind,0.0,0.0,True,0,inf,157773.42982844455,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,74328.56675709986
+solar_Region3,Region3,PQ,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,solar,0.0,0.0,True,0,inf,151267.87719644455,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,22402.95156741972
+backup_Region3,Region3,PQ,,0.0,0.0,True,0.0,inf,,0.0,1.0,,,-inf,inf,0.0,1.0,backup,45.0,0.0,True,0,inf,60128.38596622226,,,0.0,1.0,False,0.0,0.0,0.0,0,0,1,0,,,,,1.0,-0.0

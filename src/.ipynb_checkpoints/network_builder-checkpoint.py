@@ -14,53 +14,75 @@ def build_network(
     transmission_capex_per_mw: float,
     ldes_duration_hours: int = 24,
 ) -> pypsa.Network:
-    
-    # Init network
+
     n = pypsa.Network()
     n.set_snapshots(snapshots)
-    
-    # Setup Regions as buses
-    buses = {"reg1":  {"x": -120.0, "y": 36.0},
-             "reg2": {"x": -122.0, "y": 46.0},
-             "reg3": {"x": -107.0, "y": 43.0}}
-    
-    for bus, coords in buses.items():
-        n.add("Bus", bus, x=coords["x"], y=coords["y"], carrier="AC")
-        
-    # Setup Load for each region
+
+    n.snapshot_weightings.loc[:, "objective"] = 1.0
+    n.snapshot_weightings.loc[:, "stores"] = 1.0
+    n.snapshot_weightings.loc[:, "generators"] = 1.0
+
+    required_regions = ["Region1", "Region2", "Region3"]
+
+    if not load.index.equals(snapshots):
+        raise ValueError("load index does not match snapshots")
+    if not wind_cf.index.equals(snapshots):
+        raise ValueError("wind_cf index does not match snapshots")
+    if not solar_cf.index.equals(snapshots):
+        raise ValueError("solar_cf index does not match snapshots")
+
+    for df_name, df in [("load", load), ("wind_cf", wind_cf), ("solar_cf", solar_cf)]:
+        missing = [r for r in required_regions if r not in df.columns]
+        if missing:
+            raise ValueError(f"{df_name} missing columns: {missing}")
+
+    # Buses
+    n.add("Carrier", "AC")
+    buses = required_regions
+    for bus in buses:
+        n.add("Bus", bus, carrier="AC")
+
+    # Load
     for region in load.columns:
         n.add("Load", f"load_{region}", bus=region, p_set=load[region])
-    
-    # Cost assumptions # rc todo
-    wacc = 0.07
-    wind_capex_per_mw = 1_500_000
-    solar_capex_per_mw = 900_000
-    short_storage_capex_per_mw = 1_200_000
-    backup_gas_capex_per_mw = 800_000
-    
-    # rc todo : lifetimes, O&M rates
-    
-    # Generation annualized capital costs [$/MW-year]
-    wind_acc = annualized_capex(wind_capex_per_mw, 25, wacc, 0.03)
-    solar_acc = annualized_capex(solar_capex_per_mw, 25, wacc, 0.02)
-    
-    # Storage annualized capital costs [$/MW-year]
-    short_storage_acc = annualized_capex(short_storage_capex_per_mw, 15, wacc, 0.02)
 
-    # LDES
-    ldes_acc = annualized_capex(ldes_capex_per_mw, 20, wacc, 0.02)
-    
-    # Backup generation
-    backup_acc = annualized_capex(backup_gas_capex_per_mw, 30, wacc, 0.03)
-    backup_marginal_cost = 120.0  # $/MWh # rc todo
-    backup_emissions_t_per_mwh = 0.4 # tCO2/MWh rc todo
-    
-    # Transmission annualized cost [$/MW-year]
-    tx_acc = annualized_capex(transmission_capex_per_mw, 40, wacc, 0.02)
-    
-    # Setup Generators
+    # Cost assumptions
+    wacc = 0.07
+    wind_capex_per_mw = 1_660_000
+    solar_capex_per_mw = 1_480_000
+    short_storage_capex_per_mw = 1_300_000
+    backup_gas_capex_per_mw = 560_000
+
+    wind_lifetime_years = 30
+    solar_lifetime_years = 30
+    short_storage_lifetime_years = 15
+    ldes_lifetime_years = 20
+    backup_gas_lifetime_years = 30
+    transmission_lifetime_years = 40
+
+    solar_fom_per_mw = 32000
+    solar_fom_rate = solar_fom_per_mw / solar_capex_per_mw
+    wind_fom_per_mw = 24000
+    wind_fom_rate = wind_fom_per_mw / wind_capex_per_mw
+    short_storage_fom_per_mw = 30000
+    short_storage_fom_rate = short_storage_fom_per_mw / short_storage_capex_per_mw
+    backup_gas_fom_per_mw = 15000
+    backup_gas_fom_rate = backup_gas_fom_per_mw / backup_gas_capex_per_mw
+    ldes_fom_rate = 0.02
+    tx_fom_rate = 0.02
+
+    wind_acc = annualized_capex(wind_capex_per_mw, wind_lifetime_years, wacc, wind_fom_rate)
+    solar_acc = annualized_capex(solar_capex_per_mw, solar_lifetime_years, wacc, solar_fom_rate)
+    short_storage_acc = annualized_capex(short_storage_capex_per_mw, short_storage_lifetime_years, wacc, short_storage_fom_rate)
+    ldes_acc = annualized_capex(ldes_capex_per_mw, ldes_lifetime_years, wacc, ldes_fom_rate)
+    backup_acc = annualized_capex(backup_gas_capex_per_mw, backup_gas_lifetime_years, wacc, backup_gas_fom_rate)
+    tx_acc = annualized_capex(transmission_capex_per_mw, transmission_lifetime_years, wacc, tx_fom_rate)
+
+    backup_marginal_cost = 45.0
+    backup_emissions_t_per_mwh = 0.4
+
+    # Generators
     for region in buses:
-        # Wind
         n.add(
             "Generator",
             f"wind_{region}",
@@ -70,10 +92,8 @@ def build_network(
             p_max_pu=wind_cf[region],
             capital_cost=wind_acc,
             marginal_cost=0.0,
-            #p_nom_max=20000,  # optional upper bound
         )
-        
-        # Solar
+
         n.add(
             "Generator",
             f"solar_{region}",
@@ -83,10 +103,8 @@ def build_network(
             p_max_pu=solar_cf[region],
             capital_cost=solar_acc,
             marginal_cost=0.0,
-            #p_nom_max=20000,
         )
-        
-        # Firm backup
+
         n.add(
             "Generator",
             f"backup_{region}",
@@ -96,13 +114,10 @@ def build_network(
             capital_cost=backup_acc,
             marginal_cost=backup_marginal_cost,
             efficiency=1.0,
-            #p_nom_max=20000,
         )
-    
-    # StorageUnit couples power and energy via max_hours.
-    # Good for a first version of your model.
+
+    # Storage
     for region in buses:
-        # Short-duration battery (4h)
         n.add(
             "StorageUnit",
             f"battery4h_{region}",
@@ -116,8 +131,7 @@ def build_network(
             efficiency_dispatch=0.92,
             cyclic_state_of_charge=True,
         )
-    
-        # Long-duration storage
+
         n.add(
             "StorageUnit",
             f"ldes_{ldes_duration_hours}h_{region}",
@@ -131,46 +145,48 @@ def build_network(
             efficiency_dispatch=0.80,
             cyclic_state_of_charge=True,
         )
-    
-    # Transmission 
+
+    # Transmission
     links = [
-        ("reg1", "reg2"),
-        ("reg1", "reg3"),
-        ("reg2", "reg3"),
+        ("Region1", "Region2"),
+        ("Region1", "Region3"),
+        ("Region2", "Region3"),
     ]
-    
+
     for b0, b1 in links:
-        n.add("Link", f"tx_{b0}_{b1}", bus0=b0, bus1=b1, p_nom_extendable=True,
-            efficiency=1.0, marginal_cost=0.0, capital_cost=tx_capex
-        )
-    
-        """
-        # Optional reverse direction if you want symmetric explicit links.
-        # For simple stylized systems, one bidirectional Link is often enough
-        # if your PyPSA version uses signed dispatch; otherwise add reverse link.
         n.add(
             "Link",
-            f"tx_{bus1}_{bus0}",
-            bus0=bus1,
-            bus1=bus0,
+            f"tx_{b0}_{b1}",
+            bus0=b0,
+            bus1=b1,
+            carrier="transmission",
+            p_nom_extendable=True,
+            p_min_pu=-1.0,
+            p_max_pu=1.0,
+            efficiency=0.97,
+            marginal_cost=0.0,
+            capital_cost=tx_acc,
+        )
+        """n.add(
+            "Link",
+            f"tx_{b1}_{b0}",
+            bus0=b1,
+            bus1=b0,
             carrier="transmission",
             p_nom_extendable=True,
             efficiency=1.0,
             marginal_cost=0.0,
-            capital_cost=0.0,   # avoid double-counting build cost
-            p_nom_min=0.0,
-            p_nom_max=20000.0,
+            capital_cost=0.0,
         )"""
-    
-    # CO2 Emissions cap
-    
+
+    # CO2 cap
     n.carriers.loc["wind", "co2_emissions"] = 0.0
     n.carriers.loc["solar", "co2_emissions"] = 0.0
     n.carriers.loc["battery4h", "co2_emissions"] = 0.0
     n.carriers.loc["ldes", "co2_emissions"] = 0.0
     n.carriers.loc["transmission", "co2_emissions"] = 0.0
     n.carriers.loc["backup", "co2_emissions"] = backup_emissions_t_per_mwh
-    
+
     n.add(
         "GlobalConstraint",
         "co2_limit",
@@ -179,5 +195,5 @@ def build_network(
         sense="<=",
         constant=co2_cap_tons,
     )
-        
+
     return n
