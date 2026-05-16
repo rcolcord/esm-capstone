@@ -167,17 +167,6 @@ def build_network(
             marginal_cost=0.0,
             capital_cost=tx_acc,
         )
-        """n.add(
-            "Link",
-            f"tx_{b1}_{b0}",
-            bus0=b1,
-            bus1=b0,
-            carrier="transmission",
-            p_nom_extendable=True,
-            efficiency=1.0,
-            marginal_cost=0.0,
-            capital_cost=0.0,
-        )"""
 
     # CO2 cap
     n.carriers.loc["wind", "co2_emissions"] = 0.0

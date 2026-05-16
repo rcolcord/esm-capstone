@@ -10,7 +10,6 @@ import util
 import scenario_runner
 
 # Initialize load and renewable profile data
-
 load_data = pd.read_csv("data/clean_load.csv")
 load_data["time_utc"] = pd.to_datetime(load_data["time_utc"], utc=True)
 load_data = load_data.set_index("time_utc")
@@ -25,8 +24,6 @@ load["Region3"] = load_data["load_mw"] * .3
 
 wind_low, solar_low = util.load_trio_csv("data/low_correlation_trio_timeseries.csv")
 wind_high, solar_high = util.load_trio_csv("data/high_correlation_trio_timeseries.csv")
-
-
 
 # Sanity check
 print(wind_low.index.equals(solar_low.index))
@@ -54,10 +51,11 @@ correlation_cases = {
     },
 }
 
-# Baseline annualized costs (examples only; use your actual values)
+# Baseline annualized costs
 ldes_capex_per_mw = 1_800_000
 transmission_capex_per_mw = 400_000
 
+# Run core scenario matrix and save results
 core_results = scenario_runner.run_core_scenarios(
     snapshots=snapshots,
     load=load,

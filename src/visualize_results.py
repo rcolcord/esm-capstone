@@ -1,10 +1,11 @@
-# src/results_viz.py
+# src/visualize_results.py
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Iterable
 
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -191,6 +192,7 @@ def _basic_lineplot(
     ax.set_title(title)
     ax.set_xlabel("LDES Duration (hours)")
     ax.set_ylabel(ylabel)
+    ax.set_ylim(bottom=0)
     _clean_axes(ax, results)
     ax.legend(title="Correlation Case", frameon=True)
     return ax
@@ -318,11 +320,94 @@ def plot_storage_comparison(results: pd.DataFrame, ax: plt.Axes | None = None) -
     ax.set_title("Short- and Long-Duration Storage Deployment")
     ax.set_xlabel("Scenario")
     ax.set_ylabel("Installed Capacity (MW)")
+    ax.set_ylim(bottom=0)
     ax.legend(title="Storage Type", frameon=True)
     ax.tick_params(axis="x", rotation=30)
     ax.grid(True, axis="y", alpha=0.25)
     ax.grid(False, axis="x")
     return ax
+
+def plot_tx_vs_storage_dual_axis(
+    results: pd.DataFrame,
+    ax: plt.Axes | None = None,
+) -> plt.Axes:
+
+    needed = ["transmission_mw", "ldes_mwh"]
+    missing = [c for c in needed if c not in results.columns]
+    if missing:
+        raise ValueError(f"Missing columns: {missing}")
+
+    df = results.copy()
+    df["scenario_label"] = _scenario_labels(df)
+
+    # Optional: enforce consistent ordering
+    df = df.sort_values(
+        ["renewable_correlation_case", "ldes_duration_hours"]
+    )
+
+    if ax is None:
+        fig, ax1 = plt.subplots(figsize=(9, 5))
+    else:
+        ax1 = ax
+        fig = ax1.figure
+
+    ax2 = ax1.twinx()
+
+    x = np.arange(len(df))
+    width = 0.4
+
+    # Choose distinct colors (seaborn default palette)
+    tx_color = "#4C72B0"   # blue
+    ldes_color = "#DD8452" # orange
+
+    # Transmission bars
+    ax1.bar(
+        x - width / 2,
+        df["transmission_mw"],
+        width,
+        label="Transmission (MW)",
+        color=tx_color,
+    )
+
+    # LDES bars
+    ax2.bar(
+        x + width / 2,
+        df["ldes_mwh"],
+        width,
+        label="LDES Energy (MWh)",
+        color=ldes_color,
+    )
+
+    # Labels
+    ax1.set_title("Transmission and Long-Duration Storage Deployment")
+    ax1.set_xlabel("Scenario")
+    ax1.set_ylabel("Transmission Capacity (MW)")
+    ax2.set_ylabel("LDES Energy Capacity (MWh)")
+
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(df["scenario_label"], rotation=30)
+
+    # Combined legend
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(
+        handles1 + handles2,
+        labels1 + labels2,
+        title="Resource",
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.15),
+        ncol=2,
+        frameon=True,
+    )
+
+    fig.subplots_adjust(bottom=0.25)
+
+    # Grid
+    ax1.grid(True, axis="y", alpha=0.25)
+    ax1.grid(False, axis="x")
+
+    fig.tight_layout()
+    return ax1
 
 
 def plot_ldes_vs_transmission(results: pd.DataFrame, ax: plt.Axes | None = None) -> plt.Axes:
@@ -344,6 +429,187 @@ def plot_ldes_vs_transmission(results: pd.DataFrame, ax: plt.Axes | None = None)
     ax.set_ylabel("LDES Capacity (MW)")
     ax.legend(title="Scenario", frameon=True)
     return ax
+
+def plot_tx_vs_ldes_panel(results: pd.DataFrame):
+    """
+    Three-panel figure comparing transmission and LDES deployment across duration.
+
+    Parameters
+    ----------
+    results : pd.DataFrame
+        Core scenario results table.
+
+    """
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+    sns.lineplot(
+        data=results,
+        x="ldes_duration_hours",
+        y="transmission_mw",
+        hue="renewable_correlation_case",
+        style="renewable_correlation_case",
+        marker="o",
+        ax=axes[0],
+    )
+    axes[0].set_title("Transmission Capacity")
+    axes[0].set_xlabel("LDES Duration (hours)")
+    axes[0].set_ylabel("Transmission Capacity (MW)")
+    axes[0].set_xticks(sorted(results["ldes_duration_hours"].unique()))
+    axes[0].legend(title="Correlation Case", frameon=True)
+
+    ldes_col = "ldes_mw"
+    ldes_ylabel = "LDES Power Capacity (MW)"
+    ldes_title = "LDES Power Capacity"
+
+    sns.lineplot(
+        data=results,
+        x="ldes_duration_hours",
+        y=ldes_col,
+        hue="renewable_correlation_case",
+        style="renewable_correlation_case",
+        marker="o",
+        ax=axes[1],
+    )
+    axes[1].set_title(ldes_title)
+    axes[1].set_xlabel("LDES Duration (hours)")
+    axes[1].set_ylabel(ldes_ylabel)
+    axes[1].set_xticks(sorted(results["ldes_duration_hours"].unique()))
+    axes[1].legend(title="Correlation Case", frameon=True)
+
+    ldes_col = "ldes_mwh" 
+    ldes_ylabel = "LDES Energy Capacity (MWh)" 
+    ldes_title = "LDES Energy Capacity" 
+
+    sns.lineplot(
+        data=results,
+        x="ldes_duration_hours",
+        y=ldes_col,
+        hue="renewable_correlation_case",
+        style="renewable_correlation_case",
+        marker="o",
+        ax=axes[2],
+    )
+    axes[2].set_title(ldes_title)
+    axes[2].set_xlabel("LDES Duration (hours)")
+    axes[2].set_ylabel(ldes_ylabel)
+    axes[2].set_xticks(sorted(results["ldes_duration_hours"].unique()))
+    axes[2].legend(title="Correlation Case", frameon=True)
+
+    for ax in axes:
+        ax.grid(True, axis="y", alpha=0.25)
+        ax.grid(False, axis="x")
+
+    fig.tight_layout()
+    return fig, axes
+
+
+def plot_tx_vs_ldes_normalized(results: pd.DataFrame, use_energy: bool = True):
+    """
+    Plot normalized transmission and LDES deployment to compare structural trends.
+
+    Parameters
+    ----------
+    results : pd.DataFrame
+        Core scenario results table.
+    use_energy : bool
+        If True, normalize LDES MWh.
+        If False, normalize LDES MW.
+    """
+    ldes_col = "ldes_mwh" if use_energy else "ldes_mw"
+    ldes_label = "LDES MWh" if use_energy else "LDES MW"
+
+    df = results.copy()
+
+    df["transmission_norm"] = df["transmission_mw"] / df["transmission_mw"].max()
+    df["ldes_norm"] = df[ldes_col] / df[ldes_col].max()
+
+    long_df = df.melt(
+        id_vars=["renewable_correlation_case", "ldes_duration_hours"],
+        value_vars=["transmission_norm", "ldes_norm"],
+        var_name="resource",
+        value_name="normalized_value",
+    )
+
+    resource_map = {
+        "transmission_norm": "Transmission",
+        "ldes_norm": ldes_label,
+    }
+    long_df["resource"] = long_df["resource"].map(resource_map)
+
+    fig, ax = plt.subplots(figsize=(8.5, 5.5))
+
+    sns.lineplot(
+        data=long_df,
+        x="ldes_duration_hours",
+        y="normalized_value",
+        hue="renewable_correlation_case",
+        style="resource",
+        markers=True,
+        dashes=True,
+        ax=ax,
+    )
+
+    ax.set_title("Normalized Transmission and LDES Deployment")
+    ax.set_xlabel("LDES Duration (hours)")
+    ax.set_ylabel("Normalized deployment")
+    ax.set_xticks(sorted(results["ldes_duration_hours"].unique()))
+    ax.legend(title="Case / Resource", frameon=True)
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.grid(False, axis="x")
+
+    fig.tight_layout()
+    return fig, ax
+    
+
+def plot_tx_vs_ldes_bar(results: pd.DataFrame, use_energy: bool = True):
+    """
+    Grouped bar charts for transmission and LDES deployment.
+
+    Parameters
+    ----------
+    results : pd.DataFrame
+    use_energy : bool
+        If True, plot LDES MWh. If False, plot LDES MW.
+    """
+    ldes_col = "ldes_mwh" if use_energy else "ldes_mw"
+    ldes_ylabel = "LDES Energy Capacity (MWh)" if use_energy else "LDES Power Capacity (MW)"
+    ldes_title = "LDES Energy Capacity" if use_energy else "LDES Power Capacity"
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Transmission
+    sns.barplot(
+        data=results,
+        x="ldes_duration_hours",
+        y="transmission_mw",
+        hue="renewable_correlation_case",
+        ax=axes[0],
+    )
+    axes[0].set_title("Transmission Capacity")
+    axes[0].set_xlabel("LDES Duration (hours)")
+    axes[0].set_ylabel("Transmission Capacity (MW)")
+    axes[0].legend(title="Correlation Case")
+
+    # LDES
+    sns.barplot(
+        data=results,
+        x="ldes_duration_hours",
+        y=ldes_col,
+        hue="renewable_correlation_case",
+        ax=axes[1],
+    )
+    axes[1].set_title(ldes_title)
+    axes[1].set_xlabel("LDES Duration (hours)")
+    axes[1].set_ylabel(ldes_ylabel)
+    axes[1].legend(title="Correlation Case")
+
+    for ax in axes:
+        ax.grid(True, axis="y", alpha=0.3)
+        ax.grid(False, axis="x")
+
+    fig.tight_layout()
+    return fig, axes
 
 
 def plot_cost_components(results: pd.DataFrame, ax: plt.Axes | None = None) -> plt.Axes:
@@ -599,6 +865,7 @@ def plot_slide_main_panel(results: pd.DataFrame):
     return fig, axes
 
 
+
 # =============================================================================
 # Batch creators
 # =============================================================================
@@ -623,6 +890,11 @@ def create_paper_figures(results: pd.DataFrame, outdir: str | Path = "figures/pa
     plt.close(fig)
 
     fig, ax = plt.subplots()
+    plot_curtailment(results, ax=ax)
+    fig.savefig(outdir / "paper_curtailment.png", bbox_inches="tight")
+    plt.close(fig)
+
+    fig, ax = plt.subplots()
     plot_storage_comparison(results, ax=ax)
     fig.savefig(outdir / "paper_storage_comparison.png", bbox_inches="tight")
     plt.close(fig)
@@ -630,6 +902,16 @@ def create_paper_figures(results: pd.DataFrame, outdir: str | Path = "figures/pa
     fig, ax = plt.subplots()
     plot_ldes_vs_transmission(results, ax=ax)
     fig.savefig(outdir / "paper_ldes_vs_transmission.png", bbox_inches="tight")
+    plt.close(fig)
+
+    fig, ax = plt.subplots()
+    plot_ldes_power(results, ax=ax)
+    fig.savefig(outdir / "paper_ldes_power.png", bbox_inches="tight")
+    plt.close(fig)
+
+    fig, ax = plt.subplots()
+    plot_transmission_build(results, ax=ax)
+    fig.savefig(outdir / "paper_tx_build.png", bbox_inches="tight")
     plt.close(fig)
 
     fig, ax = plt.subplots()
@@ -701,6 +983,11 @@ def create_slide_figures(results: pd.DataFrame, outdir: str | Path = "figures/sl
     fig, ax = plt.subplots()
     plot_ldes_energy(results, ax=ax)
     fig.savefig(outdir / "slides_ldes_energy.png", bbox_inches="tight")
+    plt.close(fig)
+
+    fig, ax = plt.subplots()
+    plot_ldes_power(results, ax=ax)
+    fig.savefig(outdir / "slides_ldes_power.png", bbox_inches="tight")
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(8.5, 5))

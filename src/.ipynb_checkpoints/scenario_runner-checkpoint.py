@@ -18,14 +18,6 @@ def summarize_network_results(
     row: dict[str, Any] = {"scenario_id": scenario_id, **metadata}
     row["objective"] = float(getattr(n, "objective", float("nan")))
 
-    print("TRANSMISSION TEST")
-    print(n.links_t.p0["tx_Region1_Region2"].describe())
-    print(n.links_t.p0["tx_Region1_Region3"].describe())
-    print(n.links_t.p0["tx_Region2_Region3"].describe())
-    #print(n.links_t.p0["tx_Region2_Region1"].describe())
-    #print(n.links_t.p0["tx_Region3_Region1"].describe())
-    #print(n.links_t.p0["tx_Region3_Region2"].describe())
-
     def add_grouped_capacity(
         table: pd.DataFrame,
         capacity_col: str = "p_nom_opt",
@@ -218,7 +210,8 @@ def run_scenario(
         ldes_duration_hours=ldes_duration_hours,
     )
 
-    #RESOLUTION = 1
+    # for multi-hour resolution
+    #RESOLUTION = 3 # 3 hours
     #n.set_snapshots(n.snapshots[::RESOLUTION])
     #n.snapshot_weightings.loc[:, :] = RESOLUTION
 
@@ -248,7 +241,6 @@ def run_scenario(
     return n, summary
 
 
-######################################################################################
 ######################################################################################
 
 def run_core_scenarios(
@@ -280,7 +272,7 @@ def run_core_scenarios(
     ldes_capex_per_mw : float
         Baseline annualized LDES capital cost input for build_network.
 
-    transmission_capex_per_mw : float // rc todo : make list
+    transmission_capex_per_mw : float
         Baseline annualized transmission capital cost input for build_network.
     """
 
