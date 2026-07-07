@@ -4,7 +4,7 @@ The Roles of Transmission and Long-Duration Energy Storage in Balancing High-Ren
 Robert Colcord / Energy Systems Management / University of San Francisco
 
 # Report
-The accompanying capstone report can be found here: (TODO)
+The accompanying capstone report can be found in the repo root
 
 # Structure
 data/ contains raw and modified inptu data
